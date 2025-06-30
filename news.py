@@ -6,9 +6,20 @@ from email.mime.text import MIMEText
 from datetime import date
 import worldnewsapi
 from worldnewsapi.rest import ApiException
+from dotenv import load_dotenv
+
+# LOAD ENV FILE
+load_dotenv()
+
+# Access environment variables
+from_email = os.getenv("EMAIL_ADDRESS")
+from_password = os.getenv("EMAIL_PASSWORD")
+
+if not from_email or not from_password:
+    raise ValueError("Missing email credentials. Please check your .env file.")
 
 # ========== 1. API Setup ==========
-API_KEY = os.getenv("API_KEY", "8dbda30d8459436b85cb7fce199f9231")
+API_KEY = os.getenv("API_KEY")
 configuration = worldnewsapi.Configuration(
     host="https://api.worldnewsapi.com"
 )
@@ -31,7 +42,7 @@ def get_today_top_news():
             )
             response_dict = response.to_dict()
 
-            # ✅ Correctly access the nested list
+            # Correctly access the nested list
             top_news_items = response_dict.get("top_news", [])
             if top_news_items and isinstance(top_news_items[0], dict):
                 return top_news_items[0].get("news", [])
@@ -85,9 +96,6 @@ def generate_email_html(news_df):
 
 
 def send_email(subject, html_content, to_emails):
-    from_email = "theboldtype236@gmail.com"
-    from_password = os.getenv("EMAIL_PASSWORD", "mrva fuuv jfds ghpg")
-
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = from_email
