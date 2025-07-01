@@ -2,7 +2,6 @@
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Made with Pandas](https://img.shields.io/badge/pandas-used-brightgreen.svg)](https://pandas.pydata.org/)
-[![MIT License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 > A Python script to fetch today’s top world news, format it beautifully, and send it straight to your inbox.
 
