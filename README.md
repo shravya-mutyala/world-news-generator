@@ -1,67 +1,83 @@
-🌍 #World News Email Notifier
-This Python script fetches the top news headlines of the day using the World News API, flattens and formats them, and sends an HTML email summary to your inbox. Great for staying up to date with global events — hands-free!
+# 🌍 World News Email Notifier
 
-📦 Features
-🕓 Automatically pulls today’s top news
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Made with Pandas](https://img.shields.io/badge/pandas-used-brightgreen.svg)](https://pandas.pydata.org/)
+[![MIT License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
-📊 Uses pandas to flatten complex API responses
+> A Python script to fetch today’s top world news, format it beautifully, and send it straight to your inbox.
 
-📨 Sends news in a clean, responsive HTML email format
+---
 
-🔐 Securely loads credentials from a .env file
+## ✨ Features
 
-✅ Easily customizable for daily automation
+✅ Fetches real-time **top news** using [World News API](https://worldnewsapi.com/)  
+✅ Parses and flattens nested JSON using **Pandas**  
+✅ Sends a clean **HTML email** with summaries, authors, images, and links  
+✅ Secures credentials via `.env`  
+✅ Ideal for **daily automation** with cron/Task Scheduler
 
-🚀 Quick Start
-1. Clone the repo
-bash
-Copy
-Edit
-git clone https://github.com/yourusername/world-news-generator.git
-cd world-news-generator
-2. Install dependencies
-bash
-Copy
-Edit
-pip install -r requirements.txt
-3. Create your .env file
-env
-Copy
-Edit
-# .env
-EMAIL_ADDRESS=your_email@gmail.com
-EMAIL_PASSWORD=your_gmail_app_password
-API_KEY=your_worldnewsapi_key
-🔐 Use a Gmail App Password — not your regular password
+---
 
-4. Run the script
-bash
-Copy
-Edit
-python news.py
-🧠 How It Works
-Authenticates with the World News API
+## 🚀 Quick Start
 
-Fetches top news for the current date
+### 🔧 Requirements
 
-Normalizes and flattens nested JSON using pandas
+- Python 3.8+
+- A Gmail account with [App Password](https://support.google.com/accounts/answer/185833)
+- A [World News API key](https://worldnewsapi.com/)
 
-Renders a clean HTML email (with title, summary, image, author, and URL)
+### 🛠 Setup
 
-Sends the email using Gmail SMTP
+1. Clone the repo:
+    ```bash
+    git clone https://github.com/yourusername/world-news-generator.git
+    cd world-news-generator
+    ```
 
-🛠 Tech Stack
-Python 3
+2. Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-pandas
+3. Create a `.env` file:
+    ```env
+    EMAIL_ADDRESS=your_email@gmail.com
+    EMAIL_PASSWORD=your_app_password_here
+    API_KEY=your_worldnewsapi_key
+    ```
 
-smtplib, email.mime
+4. Run the script:
+    ```bash
+    python news.py
+    ```
 
-python-dotenv
+---
 
-worldnewsapi SDK
+## 🧠 How It Works
 
-📅 Optional: Schedule Daily Emails
-On Windows: use Task Scheduler
+- Connects to World News API
+- Retrieves today’s top headlines
+- Flattens the structure using `pandas.json_normalize`
+- Renders a rich HTML email with:
+  - ✅ Title  
+  - 🖼 Image (if available)  
+  - ✍️ Author  
+  - 🔗 Link  
+  - 📆 Publish date  
+- Sends it via **Gmail SMTP**
 
-On macOS/Linux: use cron
+---
+
+## 🖼 Sample Email Output
+
+**Subject:** 📰 Today’s Top World News
+
+```html
+News 1: Canada Resumes Trade Talks
+Summary: Canadian PM Carney confirmed negotiations have resumed...
+Author: Taegan Goddard
+[Read Full Article]
+
+<img src="..." />
+<hr>
+News 2: Philadelphia Homes Collapse...
