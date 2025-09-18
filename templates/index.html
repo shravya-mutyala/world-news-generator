@@ -10,16 +10,68 @@
 </head>
 
 <body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1>📰 NewsHub</h1>
+            </div>
+            <div class="header-actions">
+                <button id="themeToggle" class="theme-toggle" title="Switch Theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button id="refreshBtn" class="refresh-btn">
+                    <span class="refresh-icon">🔄</span>
+                    Refresh
+                </button>
+                <div id="lastUpdated" class="last-updated" style="display: none;">
+                    <span id="updateTime"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+        <div class="nav-container">
+            <div class="nav-left">
+                <button class="tab-btn active" data-category="all">
+                    <span class="tab-icon">🏠</span>
+                    <span class="tab-text">Home</span>
+                </button>
+                <button class="tab-btn" data-category="technology">
+                    <span class="tab-icon">💻</span>
+                    <span class="tab-text">Technology</span>
+                </button>
+                <button class="tab-btn" data-category="business">
+                    <span class="tab-icon">💼</span>
+                    <span class="tab-text">Business</span>
+                </button>
+                <button class="tab-btn" data-category="sports">
+                    <span class="tab-icon">⚽</span>
+                    <span class="tab-text">Sports</span>
+                </button>
+                <button class="tab-btn" data-category="health">
+                    <span class="tab-icon">🏥</span>
+                    <span class="tab-text">Health</span>
+                </button>
+                <button class="tab-btn" data-category="science">
+                    <span class="tab-icon">🔬</span>
+                    <span class="tab-text">Science</span>
+                </button>
+            </div>
+            <div class="nav-right">
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search news...">
+                    <button class="search-btn">
+                        <span>🔍</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>📰 AI News Dashboard</h1>
-            <p class="subtitle">Technology • Business • Sports • Health • Science</p>
-            <button id="refreshBtn" class="refresh-btn">
-                <span class="refresh-icon">🔄</span>
-                Refresh News
-            </button>
-        </header>
 
         <!-- Loading State -->
         <div id="loading" class="loading">
@@ -27,15 +79,34 @@
             <p>Fetching latest news...</p>
         </div>
 
-        <!-- Last Updated -->
-        <div id="lastUpdated" class="last-updated" style="display: none;">
-            Last updated: <span id="updateTime"></span>
-        </div>
+        <!-- Content Area -->
+        <main class="content-area">
+            <div class="main-layout">
+                <!-- Left Column - Main News -->
+                <div class="main-content">
+                    <!-- Category Header -->
+                    <div id="categoryHeader" class="category-header" style="display: none;">
+                        <h2 id="categoryTitle">All News</h2>
+                        <p id="categoryDescription">Latest headlines from all categories</p>
+                    </div>
 
-        <!-- News Grid -->
-        <div id="newsGrid" class="news-grid" style="display: none;">
-            <!-- News cards will be inserted here -->
-        </div>
+                    <!-- News List -->
+                    <div id="newsList" class="news-list" style="display: none;">
+                        <!-- News items will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Right Column - Top News Sidebar -->
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        <h3>🔥 Trending Now</h3>
+                    </div>
+                    <div id="topNewsList" class="top-news-list">
+                        <!-- Top news will be inserted here -->
+                    </div>
+                </aside>
+            </div>
+        </main>
 
         <!-- Error State -->
         <div id="error" class="error" style="display: none;">
@@ -47,13 +118,172 @@
 
     <script>
         let isLoading = false;
+        let currentCategory = 'all';
+        let allNewsData = {};
 
-        // Load news on page load
-        document.addEventListener('DOMContentLoaded', loadNews);
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, initializing app');
+            initializeTheme();
+            initializeTabs();
+            loadNews();
 
-        // Refresh button click
-        document.getElementById('refreshBtn').addEventListener('click', loadNews);
+            // Test search elements after a short delay
+            setTimeout(() => {
+                const searchInput = document.getElementById('searchInput');
+                const searchBtn = document.querySelector('.search-btn');
+                console.log('Search input found:', !!searchInput);
+                console.log('Search button found:', !!searchBtn);
+            }, 1000);
+        });
 
+        // Initialize theme functionality
+        function initializeTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.querySelector('.theme-icon');
+
+            // Load saved theme or default to light
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.body.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                document.body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeIcon(newTheme);
+            });
+        }
+
+        function updateThemeIcon(theme) {
+            const themeIcon = document.querySelector('.theme-icon');
+            themeIcon.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+
+        // Initialize tab functionality
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const category = btn.dataset.category;
+                    switchTab(category);
+                });
+            });
+
+            document.getElementById('refreshBtn').addEventListener('click', loadNews);
+            initializeSearch();
+        }
+
+        // Initialize search functionality
+        function initializeSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.querySelector('.search-btn');
+
+            if (!searchInput || !searchBtn) {
+                console.log('Search elements not found');
+                return;
+            }
+
+            console.log('Initializing search functionality');
+
+            // Search on button click
+            searchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Search button clicked');
+                performSearch();
+            });
+
+            // Search on Enter key press
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    console.log('Enter key pressed in search');
+                    performSearch();
+                }
+            });
+
+            // Real-time search as user types
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.trim();
+                if (searchTerm) {
+                    performSearch();
+                } else {
+                    // If search is cleared, show original category news
+                    displayCategoryNews(currentCategory);
+                }
+            });
+        }
+
+        // Store currently displayed articles for search
+        let currentDisplayedArticles = [];
+
+        // Perform search functionality
+        function performSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchTerm = searchInput.value.trim().toLowerCase();
+
+            console.log('Performing search for:', searchTerm);
+
+            if (!searchTerm) {
+                displayCategoryNews(currentCategory);
+                return;
+            }
+
+            // Filter currently displayed articles
+            const filteredArticles = currentDisplayedArticles.filter(article => {
+                const matchesTitle = article.title && article.title.toLowerCase().includes(searchTerm);
+                const matchesSummary = article.summary && article.summary.toLowerCase().includes(searchTerm);
+                const matchesAuthor = article.author && article.author.toLowerCase().includes(searchTerm);
+
+                return matchesTitle || matchesSummary || matchesAuthor;
+            });
+
+            console.log('Found', filteredArticles.length, 'matching articles');
+
+            // Update category header to show search results
+            updateSearchHeader(searchTerm, filteredArticles.length);
+
+            // Display filtered results
+            displayNewsList(filteredArticles, true);
+        }
+
+        // Update header for search results
+        function updateSearchHeader(searchTerm, resultCount) {
+            const categoryTitle = document.getElementById('categoryTitle');
+            const categoryDescription = document.getElementById('categoryDescription');
+
+            categoryTitle.textContent = `Search Results`;
+            categoryDescription.textContent = `Found ${resultCount} article${resultCount !== 1 ? 's' : ''} for "${searchTerm}"`;
+            document.getElementById('categoryHeader').style.display = 'block';
+        }
+
+        // Switch between tabs
+        function switchTab(category) {
+            // Update active tab
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-category="${category}"]`).classList.add('active');
+
+            // Clear search when switching tabs
+            clearSearch();
+
+            currentCategory = category;
+            displayCategoryNews(category);
+            loadCategoryTrendingNews(category);
+        }
+
+        // Clear search function
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+        }
+
+        // Load all news data
         async function loadNews() {
             if (isLoading) return;
 
@@ -61,14 +291,18 @@
             showLoading();
 
             try {
-                const response = await fetch('/api/news');
-                const data = await response.json();
+                const newsResponse = await fetch('/api/news');
+                const newsData = await newsResponse.json();
 
-                if (data.success) {
-                    displayNews(data.news);
-                    updateLastUpdated(data.last_updated);
+                if (newsData.success) {
+                    allNewsData = newsData.news_by_category || {};
+                    displayCategoryNews(currentCategory);
+                    updateLastUpdated(newsData.last_updated);
+
+                    // Load trending news for current category
+                    loadCategoryTrendingNews(currentCategory);
                 } else {
-                    showError(data.error || 'Failed to fetch news');
+                    showError(newsData.error || 'Failed to fetch news');
                 }
             } catch (error) {
                 showError('Network error. Please check your connection.');
@@ -78,9 +312,251 @@
             }
         }
 
+        // Load trending news for specific category
+        async function loadCategoryTrendingNews(category) {
+            try {
+                const response = await fetch(`/api/top-news?category=${category}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayTopNews(data.articles || [], category);
+                    updateSidebarTitle(category);
+                } else {
+                    console.error('Trending news API error:', data.error);
+                    // Fallback to using existing news data
+                    displayTrendingFallback(category);
+                }
+            } catch (error) {
+                console.error('Error loading trending news:', error);
+                displayTrendingFallback(category);
+            }
+        }
+
+        // Fallback: use existing news data for trending
+        function displayTrendingFallback(category) {
+            let fallbackArticles = [];
+
+            if (category === 'all') {
+                // Get articles from all categories
+                Object.values(allNewsData).forEach(categoryArticles => {
+                    fallbackArticles = fallbackArticles.concat(categoryArticles.slice(0, 2));
+                });
+            } else {
+                // Get articles from specific category
+                fallbackArticles = allNewsData[category] || [];
+            }
+
+            // Shuffle and take top 5
+            fallbackArticles = fallbackArticles.sort(() => 0.5 - Math.random()).slice(0, 5);
+
+            if (fallbackArticles.length > 0) {
+                displayTopNews(fallbackArticles, category);
+                updateSidebarTitle(category);
+            } else {
+                displayTrendingError(category);
+            }
+        }
+
+        // Display error message in trending sidebar
+        function displayTrendingError(category) {
+            const topNewsList = document.getElementById('topNewsList');
+            topNewsList.innerHTML = '<div class="no-trending">Unable to load trending news. Please try again later.</div>';
+            updateSidebarTitle(category);
+        }
+
+        // Display top news in sidebar
+        function displayTopNews(articles, category = 'all') {
+            const topNewsList = document.getElementById('topNewsList');
+            topNewsList.innerHTML = '';
+
+            if (articles.length === 0) {
+                topNewsList.innerHTML = '<div class="no-trending">No trending news available</div>';
+                return;
+            }
+
+            articles.slice(0, 5).forEach((article, index) => {
+                const topNewsItem = createTopNewsItem(article, index + 1);
+                topNewsList.appendChild(topNewsItem);
+            });
+        }
+
+        // Update sidebar title based on category
+        function updateSidebarTitle(category) {
+            const sidebarHeader = document.querySelector('.sidebar-header h3');
+            const categoryTitles = {
+                'all': '🔥 Trending Now',
+                'technology': '💻 Trending in Tech',
+                'business': '💼 Trending in Business',
+                'sports': '⚽ Trending in Sports',
+                'health': '🏥 Trending in Health',
+                'science': '🔬 Trending in Science'
+            };
+
+            sidebarHeader.textContent = categoryTitles[category] || '🔥 Trending Now';
+        }
+
+        // Create top news item
+        function createTopNewsItem(article, rank) {
+            const item = document.createElement('div');
+            item.className = 'top-news-item';
+
+            const timeAgo = getTimeAgo(article.publish_date);
+
+            item.innerHTML = `
+                <div class="top-news-rank">${rank}</div>
+                <div class="top-news-content">
+                    <h4 class="top-news-title">
+                        <a href="${article.url}" target="_blank">${article.title}</a>
+                    </h4>
+                    <div class="top-news-meta">
+                        <span class="top-news-source">${article.author}</span>
+                        <span class="top-news-time">${timeAgo}</span>
+                    </div>
+                </div>
+            `;
+
+            return item;
+        }
+
+        // Display news for selected category
+        function displayCategoryNews(category) {
+            const categoryInfo = {
+                'all': { title: 'News Today', description: getCurrentDateString() },
+                'technology': { title: 'Technology', description: 'Latest tech news, gadgets, and innovations' },
+                'business': { title: 'Business', description: 'Business news, markets, and finance' },
+                'sports': { title: 'Sports', description: 'Sports news, scores, and updates' },
+                'health': { title: 'Health', description: 'Health news, medical breakthroughs, and wellness' },
+                'science': { title: 'Science', description: 'Scientific discoveries and research' }
+            };
+
+            // Update category header
+            const info = categoryInfo[category];
+            document.getElementById('categoryTitle').textContent = info.title;
+            document.getElementById('categoryDescription').textContent = info.description;
+            document.getElementById('categoryHeader').style.display = 'block';
+
+            // Get articles for category
+            let articles = [];
+            if (category === 'all') {
+                // Combine all categories
+                Object.values(allNewsData).forEach(categoryArticles => {
+                    articles = articles.concat(categoryArticles);
+                });
+            } else {
+                articles = allNewsData[category] || [];
+            }
+
+            // Display articles
+            displayNewsList(articles);
+        }
+
+        // Display news in list format
+        function displayNewsList(articles, isSearchResult = false) {
+            const newsList = document.getElementById('newsList');
+            newsList.innerHTML = '';
+
+            // Store articles for search functionality (only if not a search result)
+            if (!isSearchResult) {
+                currentDisplayedArticles = articles;
+                console.log('Stored', articles.length, 'articles for search');
+            }
+
+            if (articles.length === 0) {
+                if (isSearchResult) {
+                    newsList.innerHTML = `
+                        <div class="no-search-results">
+                            <h3>No articles found</h3>
+                            <p>Try different keywords or clear search to see all articles</p>
+                        </div>
+                    `;
+                } else {
+                    newsList.innerHTML = '<div class="no-news">No news available for this category</div>';
+                }
+            } else {
+                articles.forEach(article => {
+                    const newsItem = createNewsItem(article);
+                    newsList.appendChild(newsItem);
+                });
+            }
+
+            document.getElementById('newsList').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        // Create individual news item
+        function createNewsItem(article) {
+            const item = document.createElement('article');
+            item.className = 'news-item';
+
+            const timeAgo = getTimeAgo(article.publish_date);
+            const imageHtml = article.image ?
+                `<img src="${article.image}" alt="News image" class="news-thumbnail" onerror="this.style.display='none'">` :
+                '<div class="news-placeholder">📰</div>';
+
+            item.innerHTML = `
+                <div class="news-content">
+                    <div class="news-main">
+                        <h3 class="news-headline">
+                            <a href="${article.url}" target="_blank">${article.title}</a>
+                        </h3>
+                        <p class="news-excerpt">${article.summary}</p>
+                        <div class="news-meta">
+                            <span class="news-source">${article.author}</span>
+                            <span class="news-time">${timeAgo}</span>
+                            <span class="news-category">${article.emoji} ${article.category}</span>
+                        </div>
+                    </div>
+                    <div class="news-media">
+                        ${imageHtml}
+                    </div>
+                </div>
+            `;
+
+            return item;
+        }
+
+        // Get current date string
+        function getCurrentDateString() {
+            const today = new Date();
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+            return today.toLocaleDateString('en-US', options);
+        }
+
+        // Calculate time ago
+        function getTimeAgo(dateString) {
+            if (!dateString) return 'Unknown time';
+
+            try {
+                const now = new Date();
+                const publishDate = new Date(dateString);
+                const diffMs = now - publishDate;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+                if (diffHours >= 24) {
+                    const diffDays = Math.floor(diffHours / 24);
+                    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                } else if (diffHours >= 1) {
+                    return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                } else if (diffMinutes >= 1) {
+                    return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                } else {
+                    return 'Just now';
+                }
+            } catch {
+                return 'Unknown time';
+            }
+        }
+
         function showLoading() {
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('newsGrid').style.display = 'none';
+            document.getElementById('newsList').style.display = 'none';
+            document.getElementById('categoryHeader').style.display = 'none';
             document.getElementById('error').style.display = 'none';
             document.getElementById('refreshBtn').disabled = true;
         }
@@ -90,83 +566,22 @@
             document.getElementById('refreshBtn').disabled = false;
         }
 
-        function displayNews(newsArray) {
-            const grid = document.getElementById('newsGrid');
-            grid.innerHTML = '';
-
-            newsArray.forEach(article => {
-                const card = createNewsCard(article);
-                grid.appendChild(card);
-            });
-
-            document.getElementById('newsGrid').style.display = 'grid';
-            document.getElementById('error').style.display = 'none';
-        }
-
-        function createNewsCard(article) {
-            const card = document.createElement('div');
-            card.className = 'news-card';
-
-            const imageHtml = article.image ?
-                `<img src="${article.image}" alt="News image" class="news-image" onerror="this.style.display='none'">` : '';
-
-            card.innerHTML = `
-                <div class="card-header">
-                    <span class="category-badge">
-                        ${article.emoji} ${article.category}
-                    </span>
-                </div>
-                ${imageHtml}
-                <div class="card-content">
-                    <h3 class="news-title">${article.title}</h3>
-                    <p class="news-summary">${article.summary}</p>
-                    <div class="news-meta">
-                        <span class="author">By ${article.author}</span>
-                        ${article.publish_date ? `<span class="date">${formatDate(article.publish_date)}</span>` : ''}
-                    </div>
-                    <a href="${article.url}" target="_blank" class="read-more" ${article.url === '#' ? 'style="display:none"' : ''}>
-                        📖 Read Full Article
-                    </a>
-                </div>
-            `;
-
-            return card;
-        }
-
-        function formatDate(dateString) {
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            } catch {
-                return '';
-            }
-        }
-
         function updateLastUpdated(timestamp) {
-            // Convert server timestamp to user's local timezone
             const date = new Date(timestamp);
             const localTime = date.toLocaleString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit',
-                hour12: false  // Use 24-hour format
+                hour12: true  // Enable AM/PM format
             });
-            document.getElementById('updateTime').textContent = localTime;
+            document.getElementById('updateTime').textContent = `Updated ${localTime}`;
             document.getElementById('lastUpdated').style.display = 'block';
         }
 
         function showError(message) {
             document.getElementById('errorMessage').textContent = message;
             document.getElementById('error').style.display = 'block';
-            document.getElementById('newsGrid').style.display = 'none';
+            document.getElementById('newsList').style.display = 'none';
+            document.getElementById('categoryHeader').style.display = 'none';
         }
 
         // Auto-refresh every 30 minutes

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import os
 from dotenv import load_dotenv
 import requests
@@ -87,7 +87,7 @@ def summarize_text(text, title):
     except:
         return text[:150] + "..."
 
-def get_top_headlines_by_category(category_name, max_results=5):
+def get_top_headlines_by_category(category_name, max_results=10):
     """Get today's top headlines for a specific category"""
     try:
         url = f"{NEWS_API_BASE_URL}/top-headlines"
@@ -128,33 +128,34 @@ def get_diverse_news():
         "Science": "🔬"
     }
     
-    all_news = []
+    news_by_category = {}
     
     for category_name, api_category in categories.items():
         print(f"🔍 Fetching today's {category_name} headlines...")
-        news = get_top_headlines_by_category(api_category, 1)
-        if news:
-            article = news[0]
-            
+        news = get_top_headlines_by_category(api_category, 10)  # Get 10 articles per category
+        
+        category_articles = []
+        for article in news:
             # Get AI summary
             content = article.get('content') or article.get('description', '')
             title = article.get('title', 'No title')
-            summary = summarize_text(content, title) if content else "No summary available"
+            summary = summarize_text(content, title) if content else article.get('description', 'No summary available')
             
             news_item = {
                 'category': category_name,
                 'emoji': category_emojis.get(category_name, "📰"),
                 'title': title,
                 'summary': summary,
-                'author': article.get('author', 'Unknown'),
+                'author': article.get('source', {}).get('name', 'Unknown'),
                 'url': article.get('url', '#'),
                 'image': article.get('urlToImage', ''),
                 'publish_date': article.get('publishedAt', '')
             }
-            all_news.append(news_item)
-        else:
-            # Add placeholder if no news found
-            all_news.append({
+            category_articles.append(news_item)
+        
+        # Add placeholder if no news found
+        if not category_articles:
+            category_articles.append({
                 'category': category_name,
                 'emoji': category_emojis.get(category_name, "📰"),
                 'title': f'No {category_name} news available',
@@ -164,8 +165,10 @@ def get_diverse_news():
                 'image': '',
                 'publish_date': ''
             })
+        
+        news_by_category[api_category] = category_articles
     
-    return all_news
+    return news_by_category
 
 @app.route('/')
 def index():
@@ -174,15 +177,111 @@ def index():
 
 @app.route('/api/news')
 def api_news():
-    """API endpoint to get latest news"""
+    """API endpoint to get latest news organized by category"""
     try:
-        news = get_diverse_news()
+        news_by_category = get_diverse_news()
         return jsonify({
             'success': True,
-            'news': news,
+            'news_by_category': news_by_category,
             'last_updated': datetime.now().isoformat()
         })
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/top-news')
+def api_top_news():
+    """API endpoint to get top trending news by category"""
+    try:
+        category = request.args.get('category', 'general')
+        print(f"🔍 Fetching trending news for category: {category}")
+        
+        # Check if API key exists
+        if not NEWS_API_KEY:
+            print("❌ NEWS_API_KEY not found!")
+            return jsonify({
+                'success': False,
+                'error': 'API key not configured'
+            }), 500
+        
+        # Map our categories to NewsAPI categories
+        category_mapping = {
+            'all': 'general',
+            'technology': 'technology',
+            'business': 'business',
+            'sports': 'sports',
+            'health': 'health',
+            'science': 'science'
+        }
+        
+        api_category = category_mapping.get(category, 'general')
+        print(f"📊 Using API category: {api_category}")
+        
+        # Get category-specific top headlines
+        url = f"{NEWS_API_BASE_URL}/top-headlines"
+        params = {
+            'country': 'us',
+            'pageSize': 15,  # Get more to have variety
+            'apiKey': NEWS_API_KEY
+        }
+        
+        # Add category filter if not 'all'
+        if category != 'all' and api_category != 'general':
+            params['category'] = api_category
+        
+        print(f"🌐 Making request to: {url}")
+        print(f"📋 Parameters: {params}")
+        
+        response = requests.get(url, params=params)
+        print(f"📡 Response status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"❌ API Error: {response.text}")
+            return jsonify({
+                'success': False,
+                'error': f'API returned status {response.status_code}'
+            }), 500
+        
+        data = response.json()
+        print(f"📄 Response data keys: {list(data.keys())}")
+        
+        if data.get('status') != 'ok':
+            error_msg = data.get('message', 'Unknown API error')
+            print(f"❌ API Error: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 500
+        
+        articles = []
+        if data.get('articles'):
+            print(f"📰 Found {len(data['articles'])} articles")
+            for article in data['articles']:
+                articles.append({
+                    'title': article.get('title', 'No title'),
+                    'author': article.get('source', {}).get('name', 'Unknown'),
+                    'url': article.get('url', '#'),
+                    'publish_date': article.get('publishedAt', ''),
+                    'category': category
+                })
+        else:
+            print("⚠️ No articles found in response")
+        
+        return jsonify({
+            'success': True,
+            'articles': articles,
+            'category': category
+        })
+    except requests.exceptions.RequestException as e:
+        print(f"🌐 Network error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Network error: {str(e)}'
+        }), 500
+    except Exception as e:
+        print(f"💥 Unexpected error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
