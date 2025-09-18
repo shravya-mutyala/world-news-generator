@@ -121,7 +121,7 @@ def api_news():
         return jsonify({
             'success': True,
             'news': news,
-            'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'last_updated': datetime.now().isoformat()
         })
     except Exception as e:
         return jsonify({
