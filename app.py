@@ -1,7 +1,5 @@
 from flask import Flask, render_template, jsonify
 import os
-import worldnewsapi
-from worldnewsapi.rest import ApiException
 from dotenv import load_dotenv
 import requests
 from datetime import datetime
@@ -11,28 +9,38 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Setup World News API
-API_KEY = os.getenv("API_KEY")
-configuration = worldnewsapi.Configuration(host="https://api.worldnewsapi.com")
-configuration.api_key['apiKey'] = API_KEY
-configuration.api_key['headerApiKey'] = API_KEY
+# Setup NewsAPI
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+NEWS_API_BASE_URL = "https://newsapi.org/v2"
 
 def get_news_by_category(category, max_results=1):
-    """Get news articles for a specific category"""
-    with worldnewsapi.ApiClient(configuration) as api_client:
-        api_instance = worldnewsapi.NewsApi(api_client)
-        try:
-            response = api_instance.search_news(
-                text=category,
-                language='en',
-                number=max_results,
-                sort='publish-time',
-                sort_direction='DESC'
-            )
-            return response.news if response.news else []
-        except ApiException as e:
-            print(f"Error fetching {category} news: {e}")
+    """Get news articles for a specific category using NewsAPI"""
+    try:
+        url = f"{NEWS_API_BASE_URL}/everything"
+        params = {
+            'q': category,
+            'language': 'en',
+            'pageSize': max_results,
+            'sortBy': 'publishedAt',
+            'apiKey': NEWS_API_KEY
+        }
+        
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        if data.get('status') == 'ok' and data.get('articles'):
+            return data['articles']
+        else:
+            print(f"No articles found for {category}")
             return []
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching {category} news: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error for {category}: {e}")
+        return []
 
 def summarize_text(text, title):
     """Summarize news article using Hugging Face (free)"""
@@ -78,19 +86,19 @@ def get_diverse_news():
             article = news[0]
             
             # Get AI summary
-            text = article.text if hasattr(article, 'text') else ''
-            title = article.title if hasattr(article, 'title') else 'No title'
-            summary = summarize_text(text, title) if text else "No summary available"
+            content = article.get('content') or article.get('description', '')
+            title = article.get('title', 'No title')
+            summary = summarize_text(content, title) if content else "No summary available"
             
             news_item = {
                 'category': category_name,
                 'emoji': category_emojis.get(category_name, "📰"),
                 'title': title,
                 'summary': summary,
-                'author': article.author if hasattr(article, 'author') else 'Unknown',
-                'url': article.url if hasattr(article, 'url') else '#',
-                'image': article.image if hasattr(article, 'image') else '',
-                'publish_date': article.publish_date if hasattr(article, 'publish_date') else ''
+                'author': article.get('author', 'Unknown'),
+                'url': article.get('url', '#'),
+                'image': article.get('urlToImage', ''),
+                'publish_date': article.get('publishedAt', '')
             }
             all_news.append(news_item)
         else:
