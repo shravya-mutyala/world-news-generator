@@ -62,19 +62,19 @@ def summarize_text(text, title):
 def get_diverse_news():
     """Get one article from each category"""
     categories = {
-        "Business": "business finance economy",
-        "Technology": "technology tech software",
-        "AI": "artificial intelligence AI machine learning",
-        "Stocks": "stock market trading investment",
-        "Movies": "movies cinema film entertainment"
+        "AI": "artificial intelligence ChatGPT OpenAI machine learning",
+        "Stocks": "stock market NYSE NASDAQ trading shares",
+        "Sports": "football basketball soccer tennis Olympics",
+        "Health": "medicine healthcare medical breakthrough vaccine",
+        "Space": "NASA SpaceX rocket satellite Mars moon"
     }
     
     category_emojis = {
-        "Business": "💼",
-        "Technology": "💻", 
         "AI": "🤖",
         "Stocks": "📈",
-        "Movies": "🎬"
+        "Sports": "⚽",
+        "Health": "🏥",
+        "Space": "🚀"
     }
     
     all_news = []
