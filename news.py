@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -7,120 +6,149 @@ from datetime import date
 import worldnewsapi
 from worldnewsapi.rest import ApiException
 from dotenv import load_dotenv
+import requests
 
-# LOAD ENV FILE
+# Load environment variables
 load_dotenv()
 
-# Access environment variables
+# Email credentials
 from_email = os.getenv("EMAIL_ADDRESS")
 from_password = os.getenv("EMAIL_PASSWORD")
-
-if not from_email or not from_password:
-    raise ValueError("Missing email credentials. Please check your .env file.")
-
-# ========== 1. API Setup ==========
 API_KEY = os.getenv("API_KEY")
-configuration = worldnewsapi.Configuration(
-    host="https://api.worldnewsapi.com"
-)
+
+# Setup World News API
+configuration = worldnewsapi.Configuration(host="https://api.worldnewsapi.com")
 configuration.api_key['apiKey'] = API_KEY
 configuration.api_key['headerApiKey'] = API_KEY
 
-# ========== 2. Fetch Today's Top News ==========
-
-
-def get_today_top_news():
-    today = str(date.today())
+def get_news_by_category(category, max_results=1):
+    """Get news articles for a specific category"""
     with worldnewsapi.ApiClient(configuration) as api_client:
         api_instance = worldnewsapi.NewsApi(api_client)
         try:
-            response = api_instance.top_news(
-                source_country='us',
+            response = api_instance.search_news(
+                text=category,
                 language='en',
-                var_date=today,
-                headlines_only=False
+                number=max_results,
+                sort='publish-time',
+                sort_direction='DESC'
             )
-            response_dict = response.to_dict()
-
-            # Correctly access the nested list
-            top_news_items = response_dict.get("top_news", [])
-            if top_news_items and isinstance(top_news_items[0], dict):
-                return top_news_items[0].get("news", [])
-
-            print("Unexpected response format in 'top_news'")
-            return []
-
+            return response.news if response.news else []
         except ApiException as e:
-            print(f"Error fetching top news: {e}")
+            print(f"Error fetching {category} news: {e}")
             return []
 
+def get_diverse_news():
+    """Get one article from each category"""
+    categories = {
+        "Business": "business finance economy",
+        "Technology": "technology tech software",
+        "AI": "artificial intelligence AI machine learning",
+        "Stocks": "stock market trading investment",
+        "Movies": "movies cinema film entertainment"
+    }
+    
+    all_news = []
+    
+    for category_name, search_terms in categories.items():
+        print(f"🔍 Fetching {category_name} news...")
+        news = get_news_by_category(search_terms, 1)
+        if news:
+            # Add category label to the article
+            news[0].category = category_name
+            all_news.extend(news)
+        else:
+            print(f"⚠️ No {category_name} news found")
+    
+    return all_news
 
-# ========== 3. Flatten News ==========
+def summarize_text(text, title):
+    """Summarize news article using Hugging Face (free)"""
+    try:
+        API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+        payload = {
+            "inputs": f"{title}. {text[:800]}",
+            "parameters": {"max_length": 100, "min_length": 30}
+        }
+        response = requests.post(API_URL, json=payload)
+        result = response.json()
+        
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get('summary_text', text[:150] + "...")
+        return text[:150] + "..."
+    except:
+        return text[:150] + "..."
 
-
-def flatten_news(news_list):
-    if not news_list:
-        print("No news items to flatten.")
-        return pd.DataFrame()
-
-    df = pd.json_normalize(news_list)
-
-    # Add static metadata
-    df['language'] = 'en'
-    df['source_country'] = 'us'
-
-    # Safely extract only available columns
-    desired_cols = [
-        'language', 'image', 'author', 'id', 'text',
-        'title', 'publish_date', 'url', 'authors'
-    ]
-    existing_cols = [col for col in desired_cols if col in df.columns]
-    return df[existing_cols]
-
-# ========== 4. Generate Email HTML ==========
-
-
-def generate_email_html(news_df):
-    html = "<h2>Today's Top World News</h2><br>"
-    for i, row in news_df.iterrows():
-        html += f"<h3>News {i+1}: {row['title']}</h3>"
-        html += f"<p><b>Summary:</b> {row['text']}</p>"
-        if row.get('image'):
-            html += f"<img src='{row['image']}' alt='news image' width='400'/><br>"
-        html += f"<p><b>Author:</b> {row.get('author', 'Unknown')}</p>"
-        html += f"<p><a href='{row['url']}'>Read Full Article</a></p>"
-        html += "<hr>"
+def create_email_html(news_list):
+    """Create simple HTML email from diverse news categories"""
+    html = "<h2>📰 Today's Diverse News Briefing</h2>"
+    html += "<p><em>Business • Technology • AI • Stocks • Movies</em></p><br>"
+    
+    category_emojis = {
+        "Business": "💼",
+        "Technology": "💻", 
+        "AI": "🤖",
+        "Stocks": "📈",
+        "Movies": "🎬"
+    }
+    
+    for i, article in enumerate(news_list, 1):
+        title = article.title if hasattr(article, 'title') else 'No title'
+        text = article.text if hasattr(article, 'text') else ''
+        author = article.author if hasattr(article, 'author') else 'Unknown'
+        url = article.url if hasattr(article, 'url') else '#'
+        image = article.image if hasattr(article, 'image') else ''
+        category = getattr(article, 'category', 'General')
+        
+        # Get emoji for category
+        emoji = category_emojis.get(category, "📰")
+        
+        # Get AI summary
+        summary = summarize_text(text, title) if text else "No summary available"
+        
+        html += f"""
+        <div style="margin-bottom: 20px; padding: 15px; border-left: 4px solid #007acc;">
+            <h3>{emoji} {category}: {title}</h3>
+            <p><strong>Summary:</strong> {summary}</p>
+        """
+        
+        if image:
+            html += f'<img src="{image}" style="max-width: 300px; height: auto; margin: 10px 0;"><br>'
+        
+        html += f"""
+            <p><strong>Author:</strong> {author}</p>
+            <p><a href="{url}" style="color: #007acc;">📖 Read Full Article</a></p>
+        </div>
+        <hr>
+        """
+    
     return html
 
-# ========== 5. Send Email ==========
-
-
-def send_email(subject, html_content, to_emails):
+def send_email(html_content):
+    """Send email with news content"""
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
+    msg["Subject"] = "📰 Today's Diverse News: Business • Tech • AI • Stocks • Movies"
     msg["From"] = from_email
-    msg["To"] = ", ".join(to_emails)
-
+    msg["To"] = "theboldtype236@gmail.com"
+    
     part = MIMEText(html_content, "html")
     msg.attach(part)
-
+    
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(from_email, from_password)
-        server.sendmail(from_email, to_emails, msg.as_string())
-        print("Email sent successfully!")
+        server.sendmail(from_email, ["theboldtype236@gmail.com"], msg.as_string())
+        print("✅ Email sent successfully!")
 
-
-# ========== 6. Main Flow ==========
+# Main execution
 if __name__ == "__main__":
-    news_list = get_today_top_news()
+    print("🚀 Getting diverse news from different categories...")
+    
+    news_list = get_diverse_news()
     if news_list:
-        news_df = flatten_news(news_list)
-        email_html = generate_email_html(
-            news_df.head(5))  # limit to 5 for brevity
-        send_email(
-            subject="📰 Today's Top World News",
-            html_content=email_html,
-            to_emails=["theboldtype236@gmail.com"]
-        )
+        print(f"📰 Found {len(news_list)} articles from different categories")
+        print("🤖 Creating summaries...")
+        
+        email_html = create_email_html(news_list)
+        send_email(email_html)
     else:
-        print("No news data returned.")
+        print("❌ No news found")

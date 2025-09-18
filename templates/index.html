@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📰 AI News Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📰 AI News Dashboard</h1>
+            <p class="subtitle">Business • Technology • AI • Stocks • Movies</p>
+            <button id="refreshBtn" class="refresh-btn">
+                <span class="refresh-icon">🔄</span>
+                Refresh News
+            </button>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Fetching latest news...</p>
+        </div>
+
+        <!-- Last Updated -->
+        <div id="lastUpdated" class="last-updated" style="display: none;">
+            Last updated: <span id="updateTime"></span>
+        </div>
+
+        <!-- News Grid -->
+        <div id="newsGrid" class="news-grid" style="display: none;">
+            <!-- News cards will be inserted here -->
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="error" style="display: none;">
+            <h3>⚠️ Something went wrong</h3>
+            <p id="errorMessage"></p>
+            <button onclick="loadNews()" class="retry-btn">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        let isLoading = false;
+
+        // Load news on page load
+        document.addEventListener('DOMContentLoaded', loadNews);
+
+        // Refresh button click
+        document.getElementById('refreshBtn').addEventListener('click', loadNews);
+
+        async function loadNews() {
+            if (isLoading) return;
+
+            isLoading = true;
+            showLoading();
+
+            try {
+                const response = await fetch('/api/news');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayNews(data.news);
+                    updateLastUpdated(data.last_updated);
+                } else {
+                    showError(data.error || 'Failed to fetch news');
+                }
+            } catch (error) {
+                showError('Network error. Please check your connection.');
+            } finally {
+                isLoading = false;
+                hideLoading();
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('newsGrid').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('refreshBtn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('refreshBtn').disabled = false;
+        }
+
+        function displayNews(newsArray) {
+            const grid = document.getElementById('newsGrid');
+            grid.innerHTML = '';
+
+            newsArray.forEach(article => {
+                const card = createNewsCard(article);
+                grid.appendChild(card);
+            });
+
+            document.getElementById('newsGrid').style.display = 'grid';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function createNewsCard(article) {
+            const card = document.createElement('div');
+            card.className = 'news-card';
+
+            const imageHtml = article.image ?
+                `<img src="${article.image}" alt="News image" class="news-image" onerror="this.style.display='none'">` : '';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="category-badge">
+                        ${article.emoji} ${article.category}
+                    </span>
+                </div>
+                ${imageHtml}
+                <div class="card-content">
+                    <h3 class="news-title">${article.title}</h3>
+                    <p class="news-summary">${article.summary}</p>
+                    <div class="news-meta">
+                        <span class="author">By ${article.author}</span>
+                        ${article.publish_date ? `<span class="date">${formatDate(article.publish_date)}</span>` : ''}
+                    </div>
+                    <a href="${article.url}" target="_blank" class="read-more" ${article.url === '#' ? 'style="display:none"' : ''}>
+                        📖 Read Full Article
+                    </a>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch {
+                return '';
+            }
+        }
+
+        function updateLastUpdated(timestamp) {
+            document.getElementById('updateTime').textContent = timestamp;
+            document.getElementById('lastUpdated').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('newsGrid').style.display = 'none';
+        }
+
+        // Auto-refresh every 30 minutes
+        setInterval(loadNews, 30 * 60 * 1000);
+    </script>
+</body>
+
+</html>
