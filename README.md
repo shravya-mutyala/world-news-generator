@@ -1,4 +1,4 @@
-# 📰 AI-Enhanced Diverse News Email Notifier
+# 📰 News 
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![AI Powered](https://img.shields.io/badge/AI-Hugging%20Face-yellow.svg)](https://huggingface.co/)
