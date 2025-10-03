@@ -279,6 +279,4 @@ MIT License - feel free to modify and use for your projects!
 
 ---
 
-**Enjoy your modern, AI-powered news dashboard! 📰✨**
-
-*Built with ❤️ using Flask, NewsAPI, and Hugging Face AI*
+**Enjoy your daily dose of diverse, AI-summarized news! 📰✨**
